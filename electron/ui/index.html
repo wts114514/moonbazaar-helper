@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>MoonBazaar Helper (Open Source)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root { --primary: #2993c7; --accent: #f1c40f; }
+  html, body { height: 100%; overflow: hidden; }
+  body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; margin: 0; }
+  webview { display: flex; width: 100%; height: 100%; }
+  #titlebar {
+    height: 40px; background: #f1f5f9; display: flex; align-items: stretch;
+    -webkit-app-region: drag; user-select: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  #titlebar button { -webkit-app-region: no-drag; }
+  #tab-bar {
+    display: flex; align-items: flex-end; gap: 2px;
+    padding: 0 8px; flex: 1; overflow-x: auto;
+  }
+  #tab-bar::-webkit-scrollbar { height: 0; }
+  .tab-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 10px; height: 32px; border-radius: 6px 6px 0 0;
+    cursor: pointer; font-size: 12px; color: #475569;
+    align-self: flex-end; white-space: nowrap; max-width: 200px;
+  }
+  .tab-item.active { background: #fff; color: #0f172a; font-weight: 600; }
+  .win-btn {
+    width: 46px; height: 40px; display: flex; align-items: center;
+    justify-content: center; color: #475569;
+    cursor: pointer; border: none; background: transparent;
+    font-size: 11px; transition: background .15s;
+  }
+  .win-btn:hover { background: rgba(0,0,0,0.06); }
+  .win-btn.close:hover { background: #e81123; color: #fff; }
+  .sidebar-item:hover { background: rgba(41,147,199,0.1); }
+  .sidebar-item.active {
+    background: linear-gradient(135deg, var(--primary), #154963);
+    color: #fff;
+  }
+  .webview-wrapper {
+    position: absolute; inset: 0; display: none; flex-direction: row;
+  }
+  .webview-wrapper.active { display: flex; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<!-- 顶部标题栏 -->
+<div id="titlebar">
+  <div id="tab-bar"></div>
+  <div class="flex items-center" style="flex-shrink: 0;">
+    <button class="win-btn" id="win-min" title="最小化"><i class="fas fa-minus"></i></button>
+    <button class="win-btn" id="win-max" title="最大化"><i class="far fa-square"></i></button>
+    <button class="win-btn close" id="win-close" title="关闭"><i class="fas fa-times"></i></button>
+  </div>
+</div>
+
+<!-- 主体 -->
+<div class="flex" style="height: calc(100vh - 40px);">
+
+  <aside class="w-56 bg-white border-r border-slate-200 flex flex-col flex-shrink-0">
+    <div class="p-4 border-b border-slate-100">
+      <div class="text-lg font-black tracking-wider text-slate-900">
+        Moon<span style="color:var(--primary);">Bazaar</span>
+      </div>
+      <div class="text-xs text-slate-400 mt-0.5">Open Source Edition</div>
+    </div>
+    <nav class="flex-1 p-2 space-y-1">
+      <button data-page="home" class="sidebar-item active w-full text-left px-3 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2.5">
+        <i class="fas fa-home w-4"></i> 主页
+      </button>
+      <button data-page="templates" class="sidebar-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2.5">
+        <i class="fas fa-layer-group w-4"></i> 答案模板
+      </button>
+      <button data-page="settings" class="sidebar-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2.5">
+        <i class="fas fa-cog w-4"></i> 设置
+      </button>
+      <button data-page="about" class="sidebar-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2.5">
+        <i class="fas fa-circle-info w-4"></i> 关于
+      </button>
+    </nav>
+    <div class="p-3 border-t border-slate-100 text-xs text-slate-400 text-center">
+      <div id="status-text">未激活</div>
+      <div>v<span id="app-version">1.0.5</span></div>
+    </div>
+  </aside>
+
+  <main class="flex-1 relative overflow-hidden">
+
+    <!-- 主页 -->
+    <section id="page-home" class="absolute inset-0 flex flex-col">
+      <div class="flex items-center gap-1 px-3 py-2 bg-white border-b border-slate-200 flex-shrink-0">
+        <button id="nav-back" class="w-8 h-8 rounded hover:bg-slate-100 transition" title="后退">
+          <i class="fas fa-arrow-left text-slate-600"></i>
+        </button>
+        <button id="nav-forward" class="w-8 h-8 rounded hover:bg-slate-100 transition" title="前进">
+          <i class="fas fa-arrow-right text-slate-600"></i>
+        </button>
+        <button id="nav-reload" class="w-8 h-8 rounded hover:bg-slate-100 transition" title="刷新">
+          <i class="fas fa-rotate-right text-slate-600"></i>
+        </button>
+        <button id="nav-home" class="w-8 h-8 rounded hover:bg-slate-100 transition" title="主页">
+          <i class="fas fa-home text-slate-600"></i>
+        </button>
+        <input id="nav-url" type="text"
+          class="flex-1 border border-slate-300 rounded px-3 py-1.5 text-sm
+                 focus:outline-none focus:border-sky-500 bg-slate-50 focus:bg-white transition"
+          placeholder="输入网址...">
+        <button id="nav-go" class="px-3 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-sm font-bold text-slate-600 transition">
+          <i class="fas fa-arrow-right"></i>
+        </button>
+        <button id="nav-split" class="px-3 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-sm font-bold text-slate-600 transition">
+          <i class="fas fa-columns"></i>
+        </button>
+      </div>
+      <div id="webview-container" class="flex-1 relative bg-white"></div>
+    </section>
+
+    <!-- 答案模板 -->
+    <section id="page-templates" class="absolute inset-0 hidden overflow-y-auto p-8">
+      <div class="max-w-3xl">
+        <div class="flex justify-between items-center mb-6">
+          <div>
+            <h1 class="text-2xl font-black text-slate-900">答案模板</h1>
+            <p class="text-sm text-slate-500 mt-1">保存常用答案，答题时一键插入</p>
+          </div>
+          <button id="template-add-btn"
+            class="text-white font-bold px-4 py-2 rounded-lg text-sm"
+            style="background:var(--primary);">
+            <i class="fas fa-plus mr-1"></i>新增
+          </button>
+        </div>
+        <div id="template-list" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- 设置 -->
+    <section id="page-settings" class="absolute inset-0 hidden overflow-y-auto p-8">
+      <h1 class="text-2xl font-black mb-6 text-slate-900">设置</h1>
+      <div class="max-w-2xl space-y-4">
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200">
+          <h2 class="font-bold text-base mb-4">基础设置</h2>
+          <div class="flex justify-between items-center py-2">
+            <div>
+              <div class="font-bold text-sm">开机自启</div>
+              <div class="text-xs text-slate-500 mt-1">系统启动时自动运行</div>
+            </div>
+            <input type="checkbox" id="toggle-autolaunch" class="w-5 h-5">
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200">
+          <h2 class="font-bold text-base mb-4">数据管理</h2>
+          <p class="text-xs text-slate-500 mb-3">导出/导入配置（不含设备 ID 和激活状态）</p>
+          <div class="flex gap-2">
+            <button id="export-data-btn" class="flex-1 bg-slate-100 text-slate-700 font-bold py-2 rounded-lg hover:bg-slate-200 transition text-sm">
+              <i class="fas fa-download mr-1"></i>导出配置
+            </button>
+            <button id="import-data-btn" class="flex-1 bg-slate-100 text-slate-700 font-bold py-2 rounded-lg hover:bg-slate-200 transition text-sm">
+              <i class="fas fa-upload mr-1"></i>导入配置
+            </button>
+          </div>
+          <div id="data-result" class="text-xs mt-2 text-center"></div>
+        </div>
+
+        <button id="save-settings"
+          class="w-full text-white font-bold py-3 rounded-xl hover:shadow-lg transition"
+          style="background:linear-gradient(135deg,var(--primary),#154963);">
+          <i class="fas fa-save mr-2"></i>保存设置
+        </button>
+
+        <div class="text-xs text-slate-400 text-center mt-4">
+          设备 ID：<span id="device-id">加载中...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 关于 -->
+    <section id="page-about" class="absolute inset-0 hidden overflow-y-auto p-8">
+      <div class="max-w-3xl mx-auto space-y-6">
+        <div class="text-center py-6">
+          <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4"
+            style="background: linear-gradient(135deg, var(--primary), #154963);">
+            <i class="fas fa-cube text-white text-3xl"></i>
+          </div>
+          <h1 class="text-3xl font-black text-slate-900">MoonBazaar Helper</h1>
+          <p class="text-sm text-slate-500 mt-2">Open Source Edition · v<span id="about-version">1.0.5</span></p>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl border border-slate-200">
+          <h2 class="font-bold text-base mb-3 flex items-center gap-2">
+            <i class="fas fa-code text-purple-500"></i> 关于本开源版
+          </h2>
+          <p class="text-sm text-slate-600 leading-relaxed">
+            这是 MoonBazaar Helper 的<strong>开源部分</strong>，包含 Electron 框架、UI 层和接口定义。
+            核心功能（AI 注入、卡密系统、Worker 后端）未开源。
+          </p>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl border border-slate-200">
+          <h2 class="font-bold text-base mb-3 flex items-center gap-2">
+            <i class="fas fa-link text-blue-500"></i> 相关链接
+          </h2>
+          <div class="grid grid-cols-2 gap-3">
+            <a href="https://github.com/wts114514/moonbazaar-auto/releases" target="_blank"
+              class="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:border-sky-500 transition">
+              <i class="fas fa-download text-xl text-sky-500"></i>
+              <div>
+                <div class="text-sm font-bold">下载正式版</div>
+                <div class="text-xs text-slate-500">GitHub Releases</div>
+              </div>
+            </a>
+            <a href="https://moonbazaar.de5.net" target="_blank"
+              class="flex items-center gap-2 p-3 rounded-lg border border-slate-200 hover:border-pink-500 transition">
+              <i class="fas fa-globe text-pink-500 text-xl"></i>
+              <div>
+                <div class="text-sm font-bold">项目主页</div>
+                <div class="text-xs text-slate-500">moonbazaar.de5.net</div>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <div class="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-200 text-xs text-yellow-800">
+          <strong>⚠️ 免责声明：</strong>本软件为第三方辅助工具，与 MoonBazaar 官方无任何关联。用户因使用本软件导致的后果自行承担。
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- 通用输入弹窗 -->
+<div id="mb-input-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:5000;display:none;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:24px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+    <h3 id="mb-input-title" style="font-size:1.1rem;font-weight:900;margin:0 0 12px 0;">请输入</h3>
+    <input id="mb-input-field" type="text" style="width:100%;border:2px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:14px;margin-bottom:16px;outline:none;" />
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="mb-input-cancel" style="padding:8px 16px;border-radius:8px;background:#f1f5f9;border:none;font-weight:700;font-size:13px;cursor:pointer;">取消</button>
+      <button id="mb-input-ok" style="padding:8px 16px;border-radius:8px;background:var(--primary);color:#fff;border:none;font-weight:700;font-size:13px;cursor:pointer;">确定</button>
+    </div>
+  </div>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>
